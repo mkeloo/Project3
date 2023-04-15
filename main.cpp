@@ -85,71 +85,63 @@ struct Node
             }
         }
 
-        else // If an internal node
         {
-            // Insert element at appropriate position
-            auto iter = keys.begin();
-            while (insertMe.channelID < iter->channelID)
+            // find the appropriate child to insert the key into
+            size_t index = 0;
+            while (index < keys.size() && insertMe.channelID >= keys[index].channelID)
             {
-                iter++;
-            }
-            keys.insert(iter, insertMe);
-
-            // If amount of keys goes over maximum amount allowed, move up
-            if (keys.size() > (Nchildren - 1))
-            {
-                // If parent does not exist create one and place middle key inside
-                if (parent == nullptr)
-                {
-                    Node newParent;
-                    newParent.leaf = false;
-                    // Insert middle element into parent node
-                    parent->keys.push_back(keys.at(1));
-                    // Erase middle element from current internal node since it moved up
-                    keys.erase(next(keys.begin()));
-                    // Place in children vector
-                    parent->children.push_back(this);
-                }
-                else
-                {
-                    // If parent exists, insert middle key
-                    parent->insert(keys.at(1));
-                    // Erases Middle Element from current internal node
-                    keys.erase(next(keys.begin()));
-                }
+                index++;
             }
 
-            // If number of children over maximum amount split node
-            if (children.size() > Nchildren)
+            // call the insert function recursevely on the chosen child
+            children[index]->insert(insertMe);
+
+            // check if the chosen child has too many keys
+            if (children[index]->keys.size() > Lkeys)
             {
+                // split the child and move its middle key up
                 Node splittedNode;
                 splittedNode.leaf = false;
-                // Push keys 1 and 2 to new node
-                for (int i = 1; i < this->keys.size(); i++)
-                {
-                    splittedNode.keys.push_back(this->keys.at(i));
-                }
-                // Erase keys 1 and 2, keep key 0 in leaf
-                while (keys.size() > 1)
-                {
-                    keys.erase(next(keys.begin()));
-                }
+                splittedNode.keys.push_back(children[index]->keys.at(1));
+                splittedNode.parent = this;
 
-                // Split children amongst the nodes
-                splittedNode.children.push_back(children.at(1));
-                splittedNode.children.push_back(children.at(2));
-                children.erase(next(children.begin()));
-                children.erase(next(children.begin()));;
+                // move the children of the splitted node
+                splittedNode.children.push_back(children[index]->children.at(1));
+                splittedNode.children.push_back(children[index]->children.at(2));
+                children[index]->children.erase(next(children[index]->children.begin()));
+                children[index]->children.erase(next(children[index]->children.begin()));
 
-                // Share same parent
-                splittedNode.parent = this->parent;
+                // update keys and children of the curr internal node
+                keys.insert(keys.begin() + index, splittedNode.keys.at(0));
+                children.insert(children.begin() + index + 1, new Node(splittedNode));
+
+                // if amount of keys > maximum amount allowed, move up
+                if (keys.size() > (Nchildren - 1))
+                {
+                    // If parent !exist crete one and place middle key inside
+                    if (parent == nullptr)
+                    {
+                        Node newParent;
+                        newParent.leaf = false;
+                        newParent.keys.push_back(keys.at(1));
+                        newParent.children.push_back(this);
+                        newParent.children.push_back(children.at(1));
+                        parent = new Node(newParent);
+                        children.at(1)->parent = parent;
+                    }
+                    else
+                    {
+                        // if parent exists, insert middle key
+                        parent->insert(keys.at(1));
+                        // erase mid element from curr internl node
+                        keys.erase(next(keys.begin()));
+                    }
+                }
             }
         }
     }
-
-
-
 };
+
 
 struct bPlusTree
 {
