@@ -75,6 +75,7 @@ struct Node
                     parent->keys.push_back(newLeaf.keys.at(0));
                     // add child to parent's children vector
                     parent->children.push_back(this);
+                    parent->children.push_back(&newLeaf);
                 }
                 else
                 {
@@ -121,7 +122,27 @@ struct Node
             // If number of children over maximum amount split node
             if (children.size() > Nchildren)
             {
+                Node splittedNode;
+                splittedNode.leaf = false;
+                // Push keys 1 and 2 to new node
+                for (int i = 1; i < this->keys.size(); i++)
+                {
+                    splittedNode.keys.push_back(this->keys.at(i));
+                }
+                // Erase keys 1 and 2, keep key 0 in leaf
+                while (keys.size() > 1)
+                {
+                    keys.erase(next(keys.begin()));
+                }
 
+                // Split children amongst the nodes
+                splittedNode.children.push_back(children.at(1));
+                splittedNode.children.push_back(children.at(2));
+                children.erase(next(children.begin()));
+                children.erase(next(children.begin()));;
+
+                // Share same parent
+                splittedNode.parent = this->parent;
             }
         }
     }
@@ -134,7 +155,6 @@ struct bPlusTree
 {
     // 2-3 B+ Tree
     Node* root;
-    Node* firstLeaf;
 
     // Functions
     void insert(string id, vector<string> attr)
