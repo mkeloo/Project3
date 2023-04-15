@@ -131,7 +131,6 @@ struct Node
 struct bPlusTree {
     // 2-3 B+ Tree
     Node* root = nullptr;
-    Node* firstLeaf = nullptr;
 
     // insert function
     void insert(string id, vector<string> attr) {
@@ -139,26 +138,41 @@ struct bPlusTree {
         if (root == nullptr) {
             root = new Node;
             root->leaf = true;
-            firstLeaf = root;
         }
         root->insert(keyToInsert);
     }
 
+
+
     // search function
-    vector<string> search(string id)  {
-        Node* current = firstLeaf;
-        while (current != nullptr) {
-            // check if current node contains the key
-            for (auto& key : current->keys) {
-                if (key.channelID == id) {
-                    // Key found, return attributes
-                    return key.attributes;
+    vector<string> search(string id) {
+        if (root == nullptr) {
+            return vector<string>();
+        }
+
+        Node* curr = root;
+
+        // travrese internal nodes until reaching a leaf node
+        while (!curr->leaf) {
+            auto iter = curr->keys.begin();
+            size_t childIndx = 0;
+            for (; iter != curr->keys.end(); ++iter, ++childIndx) {
+                if (id < iter->channelID) {
+                    break;
                 }
             }
-            // if key !found in current node, move to the next leaf
-            current = current->forwardLeaf;
+            curr = curr->children[childIndx];
         }
-        // key !found in any leaf
+
+        // At this point, 'current' is a leaf node, so search for the key
+        for (auto& key : curr->keys) {
+            if (key.channelID == id) {
+                // key found, return attributes
+                return key.attributes;
+            }
+        }
+
+        // key !found in the leaf node
         return vector<string>();
     }
 
@@ -174,6 +188,7 @@ struct bPlusTree {
         }
         delete node;
     }
+
 
     // destruct
     ~bPlusTree() {
