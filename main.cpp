@@ -19,6 +19,8 @@ struct Key
     }
 };
 
+
+
 struct Node
 {
     int Lkeys = 2;
@@ -31,135 +33,187 @@ struct Node
     Node* forwardLeaf = nullptr;
     Node* previousLeaf = nullptr;
 
-
     void insert(Key insertMe)
     {
         // If node is a leaf node
         if (leaf)
         {
-            // Insert element at appropriate position
             auto iter = keys.begin();
-            while (insertMe.channelID < iter->channelID)
+            while (iter != keys.end() && insertMe.channelID > iter->channelID)
             {
                 iter++;
             }
             keys.insert(iter, insertMe);
 
-            // If too many keys in the node, make new leaf nad move keys
             if (keys.size() > Lkeys)
             {
-                // Creates new leaf node to move extra keys to and links the leaves together
-                Node newLeaf;
-                newLeaf.leaf = true;
-                // Push keys 1 and 2 to new leaf
-                for (int i = 1; i < this->keys.size(); i++)
-                {
-                    newLeaf.keys.push_back(this->keys.at(i));
-                }
-                // Erase keys 1 and 2, keep key 0 in leaf
-                while (keys.size() > 1)
-                {
-                    keys.erase(next(keys.begin()));
-                }
-                // Link leafs to finish splitting
-                forwardLeaf = &newLeaf;
-                newLeaf.previousLeaf = this;
-
-                // Moves a copy of a leaf key (first key of new leaf node) to parent node
-                // create parent node if none exists yet
-                if (parent == nullptr)
-                {
-                    Node newParent;
-                    newParent.leaf = false;
-                    // Insert first element into parent node
-                    parent->keys.push_back(newLeaf.keys.at(0));
-                    // add child to parent's children vector
-                    parent->children.push_back(this);
-                    parent->children.push_back(&newLeaf);
-                }
-                else
-                {
-                    parent->insert(newLeaf.keys.at(0));
-                }
-
+                splitLeafNode();
             }
         }
-
-        else {
-            // find the appropriate child to insert the key into
-            size_t index = 0;
-            while (index < keys.size() && insertMe.channelID >= keys[index].channelID)
+        else // If an internal node
+        {
+            auto iter = keys.begin();
+            int childIndex = 0;
+            while (iter != keys.end() && insertMe.channelID > iter->channelID)
             {
-                index++;
+                iter++;
+                childIndex++;
             }
 
-            // call the insert function recursevely on the chosen child
-            children[index]->insert(insertMe);
+            children[childIndex]->insert(insertMe);
 
-            // check if the chosen child has too many keys
-            if (children[index]->keys.size() > Lkeys)
+            if (children[childIndex]->keys.size() > Lkeys)
             {
-                // split the child and move its middle key up
-                Node splittedNode;
-                splittedNode.leaf = false;
-                splittedNode.keys.push_back(children[index]->keys.at(1));
-                splittedNode.parent = this;
-
-                // move the children of the splitted node
-                splittedNode.children.push_back(children[index]->children.at(1));
-                splittedNode.children.push_back(children[index]->children.at(2));
-                children[index]->children.erase(next(children[index]->children.begin()));
-                children[index]->children.erase(next(children[index]->children.begin()));
-
-                // update keys and children of the curr internal node
-                keys.insert(keys.begin() + index, splittedNode.keys.at(0));
-                children.insert(children.begin() + index + 1, new Node(splittedNode));
-
-                // if amount of keys > maximum amount allowed, move up
-                if (keys.size() > (Nchildren - 1))
-                {
-                    // If parent !exist crete one and place middle key inside
-                    if (parent == nullptr)
-                    {
-                        Node newParent;
-                        newParent.leaf = false;
-                        newParent.keys.push_back(keys.at(1));
-                        newParent.children.push_back(this);
-                        newParent.children.push_back(children.at(1));
-                        parent = new Node(newParent);
-                        children.at(1)->parent = parent;
-                    }
-                    else
-                    {
-                        // if parent exists, insert middle key
-                        parent->insert(keys.at(1));
-                        // erase mid element from curr internl node
-                        keys.erase(next(keys.begin()));
-                    }
-                }
+                splitInternalNode(childIndex);
             }
+        }
+    }
+
+    void splitLeafNode()
+    {
+        Node* newLeaf = new Node;
+        newLeaf->leaf = true;
+
+        for (int i = 1; i < this->keys.size(); i++)
+        {
+            newLeaf->keys.push_back(this->keys.at(i));
+        }
+
+        while (keys.size() > 1)
+        {
+            keys.erase(next(keys.begin()));
+        }
+
+        forwardLeaf = newLeaf;
+        newLeaf->previousLeaf = this;
+
+        if (parent == nullptr)
+        {
+            Node* newParent = new Node;
+            newParent->leaf = false;
+            parent = newParent;
+            this->parent = newParent;
+            newLeaf->parent = newParent;
+            parent->keys.push_back(newLeaf->keys.at(0));
+            parent->children.push_back(this);
+            parent->children.push_back(newLeaf);
+        }
+        else
+        {
+            newLeaf->parent = this->parent;
+            parent->insert(newLeaf->keys.at(0));
+        }
+    }
+
+    void splitInternalNode(int childIndex)
+    {
+        Node* splittedNode = new Node;
+        splittedNode->leaf = false;
+
+        for (int i = 1; i < this->keys.size(); i++)
+        {
+            splittedNode->keys.push_back(this->keys.at(i));
+        }
+
+        while (keys.size() > 1)
+        {
+            keys.erase(next(keys.begin()));
+        }
+
+        splittedNode->children.push_back(children.at(childIndex + 1));
+        splittedNode->children.push_back(children.at(childIndex + 2));
+        children.erase(children.begin() + childIndex + 1);
+        children.erase(children.begin() + childIndex + 1);
+
+        splittedNode->parent = this->parent;
+
+        if (parent == nullptr)
+        {
+            Node* newParent = new Node;
+            newParent->leaf = false;
+            parent = newParent;
+            this->parent = newParent;
+            splittedNode->parent = newParent;
+            parent->keys.push_back(splittedNode->keys.at(0));
+            parent->children.push_back(this);
+            parent->children.push_back(splittedNode);
+        }
+        else
+        {
+            parent->insert(splittedNode->keys.at(0));
         }
     }
 };
 
 
-struct bPlusTree
-{
+struct bPlusTree {
     // 2-3 B+ Tree
-    Node* root;
+    Node* root = nullptr;
 
-    // Functions
-    void insert(string id, vector<string> attr)
-    {
+    // insert function
+    void insert(string id, vector<string> attr) {
         Key keyToInsert(id, attr);
-        Node nodeToInsert;
+        if (root == nullptr) {
+            root = new Node;
+            root->leaf = true;
+        }
+        root->insert(keyToInsert);
     }
 
-    void search(string)
-    {
 
+
+    // search function
+    vector<string> search(string id) {
+        if (root == nullptr) {
+            return vector<string>();
+        }
+
+        Node* curr = root;
+
+        // travrese internal nodes until reaching a leaf node
+        while (!curr->leaf) {
+            auto iter = curr->keys.begin();
+            size_t childIndx = 0;
+            for (; iter != curr->keys.end(); ++iter, ++childIndx) {
+                if (id < iter->channelID) {
+                    break;
+                }
+            }
+            curr = curr->children[childIndx];
+        }
+
+        // At this point, 'current' is a leaf node, so search for the key
+        for (auto& key : curr->keys) {
+            if (key.channelID == id) {
+                // key found, return attributes
+                return key.attributes;
+            }
+        }
+
+        // key !found in the leaf node
+        return vector<string>();
+    }
+
+    // function to delete nodes
+    void deleteNodes(Node* node) {
+        if (node == nullptr) {
+            return;
+        }
+        if (!node->leaf) {
+            for (auto& child : node->children) {
+                deleteNodes(child);
+            }
+        }
+        delete node;
+    }
+
+
+    // destruct
+    ~bPlusTree() {
+        deleteNodes(root);
     }
 };
+
 
 int main()
 {
@@ -203,14 +257,26 @@ int main()
             // Creates key
             Key insertKey(currentChannelID, row);
 
+            //******** NEW ADDITION: Inserts key into B+ tree
+            ytBplusTree.insert(currentChannelID, row);
         }
     }
     else
         cout<<"Could not open the file\n";
 
-
     cout << content[8][2] << endl;
 
+    // ******** NEW ADDITION: Searches for a key in the B+ tree and prints its attributes
+    vector<string> keyAttributes = ytBplusTree.search("example_channel_id");
+    if (keyAttributes.empty()) {
+        cout << "Key not found in B+ tree" << endl;
+    } else {
+        cout << "Key attributes: ";
+        for (auto& attr : keyAttributes) {
+            cout << attr << " ";
+        }
+        cout << endl;
+    }
 
     return 0;
 }
