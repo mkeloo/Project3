@@ -85,7 +85,7 @@ struct Node
             }
         }
 
-        {
+        else {
             // find the appropriate child to insert the key into
             size_t index = 0;
             while (index < keys.size() && insertMe.channelID >= keys[index].channelID)
